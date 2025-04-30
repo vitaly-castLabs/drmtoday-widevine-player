@@ -49,6 +49,50 @@ async function fetchAndAppend(sourceBuffer, url) {
     await waitFor(sourceBuffer, 'updateend')
 }
 
+const contentType = 'video/mp4; codecs="avc1.64001f"'
+
+async function checkRobustness(keySystem, robustness) {
+    let available = false
+    try {
+        const a = await navigator.requestMediaKeySystemAccess(keySystem, [{
+            initDataTypes: ['cenc'],
+            videoCapabilities:[{contentType, robustness}]
+        }])
+        if (a)
+            available = true
+    }
+    catch(e) {}
+
+    return available
+}
+
+let keySystem = ''
+let robustness = ''
+async function checkWidevine() {
+    // check HW first
+    keySystem = 'com.widevine.alpha'
+    robustness = 'HW_SECURE_ALL'
+
+    let available = await checkRobustness(keySystem, robustness)
+    if (available)
+        return
+
+    keySystem += '.experiment'
+    available = await checkRobustness(keySystem, robustness)
+    if (available)
+        return
+
+    // and then SW
+    keySystem = 'com.widevine.alpha'
+    robustness = 'SW_SECURE_CRYPTO'
+    available = await checkRobustness(keySystem, robustness)
+    if (available)
+        return
+
+    keySystem = ''
+    alert('Widevine not available')
+}
+
 function drmTodayCert() {
     const cert64 = `CrsCCAMSEKDc0WAwLAQT1SB2ogyBJEwYv4Tx7gUijgIwggEKAoIBAQC8Xc/GTRwZDtlnBThq8V382D1oJAM0F/YgCQtNDLz7vTWJ+QskNGi5Dd2qzO4s48Cnx5BLvL4H0xCRSw2Ed6ekHSdrRUwyoYOE+M/t1oIbccwlTQ7o+BpV1X6TB7fxFyx1jsBtRsBWphU65w121zqmSiwzZzJ4xsXVQCJpQnNI61gzHO42XZOMuxytMm0F6puNHTTqhyY3Z290YqvSDdOB+UY5QJuXJgjhvOUD9+oaLlvT+vwmV2/NJWxKqHBKdL9JqvOnNiQUF0hDI7Wf8Wb63RYSXKE27Ky31hKgx1wuq7TTWkA+kHnJTUrTEfQxfPR4dJTquE+IDLAi5yeVVxzbAgMBAAE6DGNhc3RsYWJzLmNvbUABEoADMmGXpXg/0qxUuwokpsqVIHZrJfu62ar+BF8UVUKdK5oYQoiTZd9OzK3kr29kqGGk3lSgM0/p499p/FUL8oHHzgsJ7Hajdsyzn0Vs3+VysAgaJAkXZ+k+N6Ka0WBiZlCtcunVJDiHQbz1sF9GvcePUUi2fM/h7hyskG5ZLAyJMzTvgnV3D8/I5Y6mCFBPb/+/Ri+9bEvquPF3Ff9ip3yEHu9mcQeEYCeGe9zR/27eI5MATX39gYtCnn7dDXVxo4/rCYK0A4VemC3HRai2X3pSGcsKY7+6we7h4IycjqtuGtYg8AbaigovcoURAZcr1d/G0rpREjLdVLG0Gjqk63Gx688W5gh3TKemsK3R1jV0dOfj3e6uV/kTpsNRL9KsD0v7ysBQVdUXEbJotcFz71tI5qc3jwr6GjYIPA3VzusD17PN6AGQniMwxJV12z/EgnUopcFB13osydpD2AaDsgWo5RWJcNf+fzCgtUQx/0Au9+xVm5LQBdv8Ja4f2oiHN3dw`
     return Uint8Array.from(window.atob(cert64), c => c.charCodeAt(0))
@@ -106,7 +150,6 @@ async function encrypted(event) {
         }
 
         const initDataHex = uInt8ArrayToHex(new Uint8Array(event.initData))
-        console.log('initDataHex', initDataHex)
         if (initDataHex.indexOf('edef8ba979d64acea3c827dcd51d21ed') == -1) {
             alert('Unexpected DRM type (not Widevine)')
             return
@@ -114,9 +157,9 @@ async function encrypted(event) {
 
         let video = event.target
         if (!video.mediaKeys) {
-            let access = await navigator.requestMediaKeySystemAccess('com.widevine.alpha', [{
+            let access = await navigator.requestMediaKeySystemAccess(keySystem, [{
                 initDataTypes: [initDataType],
-                videoCapabilities: [{ contentType: 'video/mp4; codecs="avc1.64001f"', robustness: 'SW_SECURE_CRYPTO' }],
+                videoCapabilities: [{contentType, robustness}],
                 sessionTypes: ['temporary']
             }])
 
@@ -158,6 +201,13 @@ window.onload = async function() {
         return
     }
 
+    await checkWidevine()
+    if (!keySystem) {
+        alert('Widevine not available')
+        return
+    }
+    document.querySelector('span').textContent += `Using key system "${keySystem}" with robustness "${robustness}"\n`
+
     let video = document.querySelector('video')
     video.addEventListener('error', onerror, false)
 
@@ -168,5 +218,5 @@ window.onload = async function() {
     await waitFor(mediaSource, 'sourceopen')
 
     let sourceBuffer = mediaSource.addSourceBuffer('video/mp4; codecs="avc1.64001f"')
-    await fetchAndWaitForEncrypted(video, sourceBuffer, './meridian-480-encr.mp4')
+    await fetchAndWaitForEncrypted(video, sourceBuffer, `./meridian-${robustness === 'HW_SECURE_ALL' ? 480 : 160}-encr.mp4`)
 }
