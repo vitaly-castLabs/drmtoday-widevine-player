@@ -101,7 +101,13 @@ function drmTodayCert() {
 let env = ''
 let merchant = ''
 async function getLicense(event) {
-    let crt = {
+    const hdRestrictions = {
+        'WidevineM': {
+            'minSL': 5,
+            'requireHDCP': 'HDCP_V22'
+        }
+    }
+    const crt = {
         'profile': {
             'purchase': {}
         },
@@ -109,6 +115,12 @@ async function getLicense(event) {
             'digital': true,
             'analogue': true,
             'enforce': false
+        },
+        'op': {
+            'config': {
+                'HD': hdRestrictions,
+                'UHD': hdRestrictions
+            }
         }
     }
     let customDataObject = {sessionId: `crtjson:${JSON.stringify(crt)}`, merchant}
@@ -127,6 +139,8 @@ async function getLicense(event) {
         }
     )
     let response = await fetch(request)
+    if (!response.ok)
+        throw new Error(`Requesting license failed with status ${response.status}`)
     let json = await response.json()
     console.log('License request response:', json)
 
@@ -144,16 +158,12 @@ async function encrypted(event) {
 
     try {
         let initDataType = event.initDataType
-        if (initDataType !== 'cenc') {
-            alert(`Received unexpected initialization data type "${initDataType}"`)
-            return
-        }
+        if (initDataType !== 'cenc')
+            throw new Error(`Received unexpected initialization data type "${initDataType}"`)
 
         const initDataHex = uInt8ArrayToHex(new Uint8Array(event.initData))
-        if (initDataHex.indexOf('edef8ba979d64acea3c827dcd51d21ed') == -1) {
-            alert('Unexpected DRM type (not Widevine)')
-            return
-        }
+        if (initDataHex.indexOf('edef8ba979d64acea3c827dcd51d21ed') == -1)
+            throw new Error('Unexpected DRM type (not Widevine)')
 
         let video = event.target
         if (!video.mediaKeys) {
@@ -177,8 +187,9 @@ async function encrypted(event) {
         await session.update(response)
 
         return session
-    } catch(e) {
-        alert(`Could not start encrypted playback due to exception "${e}"`)
+    }
+    catch(e) {
+        document.querySelector('span').textContent += `Could not start encrypted playback due to exception "${e}"\n`
     }
 }
 
