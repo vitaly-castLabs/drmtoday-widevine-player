@@ -224,7 +224,7 @@ window.onload = async function() {
         log.textContent += 'HW-secure DRM is not available, loading low quality video\n'
 
     let video = document.querySelector('video')
-    video.addEventListener('error', (error) => {log.textContent += (`A video playback error occurred: "${error.message}"\n`)}, false)
+    video.addEventListener('error', (error) => {log.textContent += (`A video playback error occurred: "${JSON.stringify(error)}"\n`)}, false)
 
     log.textContent += 'Creating MediaSource\n'
 
