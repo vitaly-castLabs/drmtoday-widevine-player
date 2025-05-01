@@ -189,7 +189,7 @@ async function encrypted(event) {
         return session
     }
     catch(e) {
-        document.querySelector('span').textContent += `Could not start encrypted playback due to exception "${e}"\n`
+        document.querySelector('span').textContent += `"${e}"\n`
     }
 }
 
@@ -230,4 +230,5 @@ window.onload = async function() {
 
     let sourceBuffer = mediaSource.addSourceBuffer('video/mp4; codecs="avc1.64001f"')
     await fetchAndWaitForEncrypted(video, sourceBuffer, `./meridian-${robustness === 'HW_SECURE_ALL' ? 480 : 160}-encr.mp4`)
+    mediaSource.endOfStream()
 }
