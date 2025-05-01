@@ -148,11 +148,6 @@ async function getLicense(event) {
     return base64DecodeUint8Array(json.license)
 }
 
-function onerror(event) {
-    console.log('A video playback error occurred', event)
-    alert('A video playback error occurred')
-}
-
 async function encrypted(event) {
     document.querySelector('span').textContent += 'Got encrypted event\n'
 
@@ -180,6 +175,7 @@ async function encrypted(event) {
 
         let initData = event.initData
         let session = video.mediaKeys.createSession()
+        session.closed.then((reason) => {document.querySelector('span').textContent += `DRM session closed, reason: "${reason}"\n`})
         session.generateRequest(initDataType, initData)
 
         let message = await waitFor(session, 'message')
@@ -189,7 +185,7 @@ async function encrypted(event) {
         return session
     }
     catch(e) {
-        document.querySelector('span').textContent += `"${e}"\n`
+        document.querySelector('span').textContent += `${e}\n`
     }
 }
 
@@ -220,7 +216,7 @@ window.onload = async function() {
     document.querySelector('span').textContent += `Using key system "${keySystem}" with robustness "${robustness}"\n`
 
     let video = document.querySelector('video')
-    video.addEventListener('error', onerror, false)
+    video.addEventListener('error', (error) => {document.querySelector('span').textContent += (`A video playback error occurred: "${error.message}"\n`)}, false)
 
     document.querySelector('span').textContent += 'Creating MediaSource\n'
 
