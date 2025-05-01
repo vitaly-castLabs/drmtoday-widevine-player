@@ -1,3 +1,7 @@
+'use strict'
+
+let log
+
 function uInt8ArrayToString(array) {
     return String.fromCharCode.apply(null, array)
 }
@@ -129,7 +133,7 @@ async function getLicense(event) {
     let headers = new Headers()
     headers.append('x-dt-custom-data', serializedCustomData)
 
-    document.querySelector('span').textContent += 'Requesting license\n'
+    log.textContent += 'Requesting license\n'
     const request = new Request(
         `https://lic.${env}drmtoday.com/license-proxy-widevine/cenc/`,
         {
@@ -144,12 +148,12 @@ async function getLicense(event) {
     let json = await response.json()
     console.log('License request response:', json)
 
-    document.querySelector('span').textContent += `Done, license status: ${json.status}\n`
+    log.textContent += `Done, license status: ${json.status}\n`
     return base64DecodeUint8Array(json.license)
 }
 
 async function encrypted(event) {
-    document.querySelector('span').textContent += 'Got encrypted event\n'
+    log.textContent += 'Got encrypted event\n'
 
     try {
         let initDataType = event.initDataType
@@ -175,7 +179,7 @@ async function encrypted(event) {
 
         let initData = event.initData
         let session = video.mediaKeys.createSession()
-        session.closed.then((reason) => {document.querySelector('span').textContent += `DRM session closed, reason: "${reason}"\n`})
+        session.closed.then((reason) => {log.textContent += `DRM session closed, reason: "${reason}"\n`})
         session.generateRequest(initDataType, initData)
 
         let message = await waitFor(session, 'message')
@@ -185,7 +189,7 @@ async function encrypted(event) {
         return session
     }
     catch(e) {
-        document.querySelector('span').textContent += `${e}\n`
+        log.textContent += `${e}\n`
     }
 }
 
@@ -198,6 +202,8 @@ async function fetchAndWaitForEncrypted(video, sourceBuffer, url) {
 }
 
 window.onload = async function() {
+    log = document.querySelector('span')
+
     const params = new URLSearchParams(window.location.search)
     if (params.has('stag'))
         env = 'staging.'
@@ -213,12 +219,14 @@ window.onload = async function() {
         alert('Widevine not available')
         return
     }
-    document.querySelector('span').textContent += `Using key system "${keySystem}" with robustness "${robustness}"\n`
+    log.textContent += `Using key system "${keySystem}" with robustness "${robustness}"\n`
+    if (robustness !== 'HW_SECURE_ALL')
+        log.textContent += 'HW-secure DRM is not available, loading low quality video\n'
 
     let video = document.querySelector('video')
-    video.addEventListener('error', (error) => {document.querySelector('span').textContent += (`A video playback error occurred: "${error.message}"\n`)}, false)
+    video.addEventListener('error', (error) => {log.textContent += (`A video playback error occurred: "${error.message}"\n`)}, false)
 
-    document.querySelector('span').textContent += 'Creating MediaSource\n'
+    log.textContent += 'Creating MediaSource\n'
 
     let mediaSource = new MediaSource
     video.src = URL.createObjectURL(mediaSource)
