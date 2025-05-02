@@ -2,18 +2,6 @@
 
 let log
 
-function uInt8ArrayToHex(arr) {
-    let hex = ''
-    for (const a of arr) {
-        let value = a.toString(16)
-        if (value.length == 1)
-            value = '0' + value
-
-        hex += value
-    }
-    return hex
-}
-
 function base64DecodeUint8Array(input) {
     return Uint8Array.from(window.atob(input), c => c.charCodeAt(0))
 }
@@ -143,9 +131,9 @@ async function encrypted(event) {
         if (initDataType !== 'cenc')
             throw new Error(`Received unexpected initialization data type "${initDataType}"`)
 
-        const initDataHex = uInt8ArrayToHex(new Uint8Array(event.initData))
-        if (initDataHex.indexOf('edef8ba979d64acea3c827dcd51d21ed') == -1)
-            throw new Error('Unexpected DRM type (not Widevine)')
+        const initDataHex = Array.from(new Uint8Array(event.initData), x => x.toString(16).padStart(2, '0')).join('')
+        if (!initDataHex.includes('edef8ba979d64acea3c827dcd51d21ed'))
+            throw new Error('Unsupported DRM type (Widevine id not found)')
 
         let video = event.target
         if (!video.mediaKeys) {
