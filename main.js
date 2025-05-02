@@ -2,10 +2,6 @@
 
 let log
 
-function uInt8ArrayToString(array) {
-    return String.fromCharCode.apply(null, array)
-}
-
 function uInt8ArrayToHex(arr) {
     let hex = ''
     for (const a of arr) {
@@ -18,21 +14,8 @@ function uInt8ArrayToHex(arr) {
     return hex
 }
 
-function stringToUInt8Array(str)
-{
-    return Uint8Array.from(str, c => c.charCodeAt(0))
-}
-
 function base64DecodeUint8Array(input) {
     return Uint8Array.from(window.atob(input), c => c.charCodeAt(0))
-}
-
-function base64DecodeUint8Array2(input) {
-    return Uint8Array.from(input)
-}
-
-function base64EncodeUint8Array(input) {
-    return btoa(uInt8ArrayToString(input))
 }
 
 function waitFor(target, type) {
