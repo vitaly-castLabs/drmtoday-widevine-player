@@ -24,7 +24,7 @@ async function fetchAndAppend(sourceBuffer, url) {
     await waitFor(sourceBuffer, 'updateend')
 }
 
-const contentType = 'video/mp4; codecs="avc1.64001f"'
+const contentType = 'video/mp4;codecs="avc1.64001f"'
 
 async function checkRobustness(keySystem, robustness) {
     let available = false
@@ -43,6 +43,7 @@ async function checkRobustness(keySystem, robustness) {
 
 let keySystem = ''
 let robustness = ''
+let cencSuffix = ''
 async function checkWidevine() {
     // check HW first
     keySystem = 'com.widevine.alpha'
@@ -52,10 +53,16 @@ async function checkWidevine() {
     if (available)
         return
 
+    // Widevine L1 can be available on Windows via com.widevine.alpha.experiment,
+    // there's a gotcha though: it doesn't support AES-CBC (cbc/cbcs), so we have to
+    // use AES-CTR (cenc) instead. The whole thing is a wrapper around PlayReady CDM,
+    // that's why cenc is required.
     keySystem += '.experiment'
     available = await checkRobustness(keySystem, robustness)
-    if (available)
+    if (available) {
+        cencSuffix = '-cenc'
         return
+    }
 
     // and then SW
     keySystem = 'com.widevine.alpha'
@@ -202,7 +209,7 @@ window.onload = async function() {
     video.src = URL.createObjectURL(mediaSource)
     await waitFor(mediaSource, 'sourceopen')
 
-    let sourceBuffer = mediaSource.addSourceBuffer('video/mp4; codecs="avc1.64001f"')
-    await fetchAndWaitForEncrypted(video, sourceBuffer, `./meridian-${robustness === 'HW_SECURE_ALL' ? 480 : 160}-encr.mp4`)
+    let sourceBuffer = mediaSource.addSourceBuffer(contentType)
+    await fetchAndWaitForEncrypted(video, sourceBuffer, `./meridian-${robustness === 'HW_SECURE_ALL' ? 480 : 160}-encr${cencSuffix}.mp4`)
     mediaSource.endOfStream()
 }
